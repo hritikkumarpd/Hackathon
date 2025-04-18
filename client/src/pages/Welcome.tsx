@@ -31,20 +31,15 @@ export default function Welcome() {
       // Start a timer to automatically proceed if things take too long
       const timeoutId = setTimeout(() => {
         console.log("Proceeding despite timeout");
-        // Force continuation after timeout
+        // Just move to main app after timeout - user will need to re-request permissions
         hideFirstVisitModal();
       }, 5000); // Proceed after 5 seconds even if we're still waiting
       
-      // Attempt normal flow
-      const result = await getStarted();
+      // Attempt normal flow - getStarted returns a Promise<boolean>
+      await getStarted();
       
       // Clear the timeout if we finished successfully
       clearTimeout(timeoutId);
-      
-      if (!result) {
-        // If getStarted returned false, we need to reset loading state
-        setLoading(false);
-      }
     } catch (error) {
       console.error("Error during getStarted:", error);
       setLoading(false);
