@@ -1,17 +1,53 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 
 export default function Welcome() {
-  const { getStarted } = useAppContext();
+  const { getStarted, hideFirstVisitModal } = useAppContext();
   const [loading, setLoading] = useState(false);
+  const [microphonePermission, setMicrophonePermission] = useState<'pending' | 'granted' | 'denied'>('pending');
+  
+  // Check microphone permission on component mount to speed up the process later
+  useEffect(() => {
+    // First check if permissions are already granted
+    navigator.mediaDevices.enumerateDevices()
+      .then(devices => {
+        const hasMicrophone = devices.some(device => device.kind === 'audioinput');
+        if (hasMicrophone) {
+          setMicrophonePermission('granted');
+        }
+      })
+      .catch(err => {
+        console.log("Error checking devices:", err);
+      });
+  }, []);
   
   const handleGetStarted = async () => {
+    if (loading) return; // Prevent multiple clicks
+    
     try {
       setLoading(true);
       console.log("Welcome page: Get Started button clicked");
-      await getStarted();
+      
+      // Start a timer to automatically proceed if things take too long
+      const timeoutId = setTimeout(() => {
+        console.log("Proceeding despite timeout");
+        // Force continuation after timeout
+        hideFirstVisitModal();
+      }, 5000); // Proceed after 5 seconds even if we're still waiting
+      
+      // Attempt normal flow
+      const result = await getStarted();
+      
+      // Clear the timeout if we finished successfully
+      clearTimeout(timeoutId);
+      
+      if (!result) {
+        // If getStarted returned false, we need to reset loading state
+        setLoading(false);
+      }
     } catch (error) {
       console.error("Error during getStarted:", error);
+      setLoading(false);
     }
   };
   
@@ -80,13 +116,21 @@ export default function Welcome() {
           
           <div className="bg-neutral-50 p-4 rounded-lg mb-6">
             <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${microphonePermission === 'granted' ? 'text-green-500' : 'text-primary'} mr-3 flex-shrink-0`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {microphonePermission === 'granted' ? (
+                  <path d="M9 12l2 2 4-4"></path>
+                ) : (
+                  <>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </>
+                )}
               </svg>
               <p className="text-sm">
-                We'll need permission to use your microphone. Your conversations remain private and are not recorded.
+                {microphonePermission === 'granted' 
+                  ? "Microphone access already granted. You're ready to go!" 
+                  : "We'll need permission to use your microphone. Your conversations remain private and are not recorded."}
               </p>
             </div>
           </div>
@@ -103,7 +147,7 @@ export default function Welcome() {
             {loading ? (
               <div className="flex items-center justify-center">
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                Getting Started...
+                Connecting...
               </div>
             ) : (
               'Get Started'

@@ -107,7 +107,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       console.log("Requesting microphone access...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      
+      // Create a timeout promise to fail faster if permission takes too long
+      const timeoutPromise = new Promise<MediaStream>((_, reject) => {
+        setTimeout(() => reject(new Error("Microphone permission request timed out")), 8000);
+      });
+      
+      // Request microphone access with a timeout
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
+        timeoutPromise
+      ]);
+      
       console.log("Microphone access granted");
       
       // Set the audio stream after successful permission
@@ -116,15 +127,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // Hide the welcome modal only after successful microphone access
       hideFirstVisitModal();
       
-      // Initialize the WebSocket connection after we have the stream
-      initializeWebSocketConnection();
+      // Initialize the WebSocket connection in parallel with the UI update
+      setTimeout(() => {
+        initializeWebSocketConnection();
+      }, 0);
       
       return true;
     } catch (error) {
       console.error("Error accessing microphone:", error);
       
       // Add appropriate error handling message to the user
-      addSystemMessage("Failed to access microphone. Please ensure your microphone is connected and you've granted permission.");
+      if (error instanceof Error && error.message === "Microphone permission request timed out") {
+        addSystemMessage("Taking too long to access microphone. Please check browser permissions or try again.");
+      } else {
+        addSystemMessage("Failed to access microphone. Please ensure your microphone is connected and you've granted permission.");
+      }
       
       // Don't hide the welcome screen if there was an error
       return false;
