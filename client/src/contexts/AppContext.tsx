@@ -103,14 +103,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getStarted = async () => {
+    console.log("getStarted function called");
+    
+    // First hide the modal to ensure UI responsiveness
     hideFirstVisitModal();
+
     try {
+      console.log("Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      console.log("Microphone access granted");
+      
+      // Set the audio stream after successful permission
       setAudioStream(stream);
+      
+      // Initialize the WebSocket connection after we have the stream
       initializeWebSocketConnection();
     } catch (error) {
       console.error("Error accessing microphone:", error);
-      // Add appropriate error handling - perhaps show a toast notification
+      
+      // Add appropriate error handling message to the user
       addSystemMessage("Failed to access microphone. Please ensure your microphone is connected and you've granted permission.");
     }
   };
@@ -197,12 +208,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleSignalingData = (signal: any) => {
-    if (signal.type === 'offer' && peerConnection) {
+    if (!peerConnection) {
+      console.error("No peer connection available");
+      return;
+    }
+    
+    if (signal.type === 'offer') {
       peerConnection.setRemoteDescription(new RTCSessionDescription(signal))
-        .then(() => peerConnection.createAnswer())
-        .then(answer => peerConnection.setLocalDescription(answer))
+        .then(() => peerConnection!.createAnswer())
+        .then(answer => peerConnection!.setLocalDescription(answer))
         .then(() => {
-          if (websocket && websocket.readyState === WebSocket.OPEN && peerConnection.localDescription) {
+          if (websocket && websocket.readyState === WebSocket.OPEN && peerConnection && peerConnection.localDescription) {
             websocket.send(JSON.stringify({
               type: "signal",
               sessionId: currentUser.id,
@@ -212,10 +228,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }
         })
         .catch(error => console.error("Error handling offer:", error));
-    } else if (signal.type === 'answer' && peerConnection) {
+    } else if (signal.type === 'answer') {
       peerConnection.setRemoteDescription(new RTCSessionDescription(signal))
         .catch(error => console.error("Error setting remote description:", error));
-    } else if (signal.candidate && peerConnection) {
+    } else if (signal.candidate) {
       peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate))
         .catch(error => console.error("Error adding ICE candidate:", error));
     }
@@ -254,11 +270,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleMute = () => {
-    setIsMuted(prev => !prev);
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
     
     if (audioStream) {
       audioStream.getAudioTracks().forEach(track => {
-        track.enabled = isMuted; // Toggle the current state
+        track.enabled = !newMutedState; // When muted is true, we need to disable the track
       });
     }
   };

@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 export default function FirstVisitModal() {
   const { getStarted } = useAppContext();
   
+  const handleGetStarted = (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log("Get Started button clicked");
+    getStarted();
+  };
+  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-8 w-full max-w-lg mx-4">
@@ -75,13 +81,13 @@ export default function FirstVisitModal() {
           </div>
         </div>
         
-        <Button
+        <button
           id="get-started-btn"
-          className="bg-primary hover:bg-primary/90 text-white w-full py-6 rounded-lg font-medium transition"
-          onClick={getStarted}
+          className="bg-primary hover:bg-primary/90 text-white w-full py-3 px-4 rounded-lg font-medium transition cursor-pointer"
+          onClick={handleGetStarted}
         >
           Get Started
-        </Button>
+        </button>
       </div>
     </div>
   );
