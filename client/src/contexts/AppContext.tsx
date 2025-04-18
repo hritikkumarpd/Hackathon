@@ -32,7 +32,7 @@ interface AppContextProps {
   toggleMute: () => void;
   hideFirstVisitModal: () => void;
   cancelConnection: () => void;
-  getStarted: () => void;
+  getStarted: () => Promise<boolean>;
 }
 
 const defaultContext: AppContextProps = {
@@ -49,7 +49,7 @@ const defaultContext: AppContextProps = {
   toggleMute: () => {},
   hideFirstVisitModal: () => {},
   cancelConnection: () => {},
-  getStarted: () => {}
+  getStarted: async () => false
 };
 
 const AppContext = createContext<AppContextProps>(defaultContext);

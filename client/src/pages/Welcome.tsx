@@ -21,25 +21,21 @@ export default function Welcome() {
       });
   }, []);
   
-  const handleGetStarted = async () => {
+  const handleGetStarted = () => {
     if (loading) return; // Prevent multiple clicks
     
     try {
       setLoading(true);
       console.log("Welcome page: Get Started button clicked");
       
-      // Start a timer to automatically proceed if things take too long
-      const timeoutId = setTimeout(() => {
-        console.log("Proceeding despite timeout");
-        // Just move to main app after timeout - user will need to re-request permissions
-        hideFirstVisitModal();
-      }, 5000); // Proceed after 5 seconds even if we're still waiting
+      // Just skip the microphone permission and move directly to the main page
+      // This is a temporary solution to fix the loading issue
+      hideFirstVisitModal();
       
-      // Attempt normal flow - getStarted returns a Promise<boolean>
-      await getStarted();
-      
-      // Clear the timeout if we finished successfully
-      clearTimeout(timeoutId);
+      // Try to initialize audio in the background
+      getStarted().catch(error => {
+        console.error("Error initializing audio:", error);
+      });
     } catch (error) {
       console.error("Error during getStarted:", error);
       setLoading(false);
