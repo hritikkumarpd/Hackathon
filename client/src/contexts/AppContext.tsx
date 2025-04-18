@@ -105,9 +105,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const getStarted = async () => {
     console.log("getStarted function called");
     
-    // First hide the modal to ensure UI responsiveness
-    hideFirstVisitModal();
-
     try {
       console.log("Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -116,13 +113,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // Set the audio stream after successful permission
       setAudioStream(stream);
       
+      // Hide the welcome modal only after successful microphone access
+      hideFirstVisitModal();
+      
       // Initialize the WebSocket connection after we have the stream
       initializeWebSocketConnection();
+      
+      return true;
     } catch (error) {
       console.error("Error accessing microphone:", error);
       
       // Add appropriate error handling message to the user
       addSystemMessage("Failed to access microphone. Please ensure your microphone is connected and you've granted permission.");
+      
+      // Don't hide the welcome screen if there was an error
+      return false;
     }
   };
 
