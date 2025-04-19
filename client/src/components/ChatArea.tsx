@@ -1,10 +1,6 @@
-import { useEffect, useRef } from "react";
-
-interface User {
-  id: string;
-  name: string;
-  avatar: string;
-}
+import { useAppContext } from "@/contexts/AppContext";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 interface Message {
   id: string;
@@ -13,76 +9,56 @@ interface Message {
   senderName: string;
   timestamp: number;
   type: string;
+  sentiment?: number; // Added sentiment field
+  language?: string; // Added language field
 }
 
-interface ChatAreaProps {
-  messages: Message[];
-  currentUser: User;
-  partner: User | null;
-}
+export default function ChatArea() {
+  const { messages } = useAppContext();
 
-export default function ChatArea({ messages, currentUser, partner }: ChatAreaProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const getSentimentColor = (score: number) => {
+    if (score > 0) return "bg-green-500";
+    if (score < 0) return "bg-red-500";
+    return "bg-gray-500";
   };
-  
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-  
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-  
+
   return (
-    <div id="chat-messages" className="flex-1 p-6 overflow-y-auto bg-white">
-      {messages.length === 0 && (
-        <div className="flex justify-center mb-6">
-          <div className="bg-neutral-100 text-neutral-700 rounded-full px-4 py-2 text-sm">
-            Welcome to Bolo&Seekho! Click "Next Partner" to start.
-          </div>
-        </div>
-      )}
-      
-      {messages.map(message => {
-        if (message.type === "system") {
-          return (
-            <div key={message.id} className="flex justify-center mb-6 system-message">
-              <div className="bg-neutral-100 text-neutral-700 rounded-full px-4 py-2 text-sm">
-                {message.content}
-              </div>
-            </div>
-          );
-        }
-        
-        const isCurrentUser = message.senderId === currentUser.id;
-        const avatarText = isCurrentUser ? currentUser.avatar : (partner ? partner.avatar : "??");
-        
-        return (
-          <div 
-            key={message.id} 
-            className={`flex ${isCurrentUser ? 'flex-row-reverse' : 'mb-4'} mb-4`}
+    <ScrollArea className="flex-1 p-4">
+      <div className="space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex flex-col ${
+              message.type === "system" ? "items-center" : "items-start"
+            }`}
           >
-            <div 
-              className={`h-8 w-8 rounded-full ${isCurrentUser ? 'bg-primary/10 text-primary ml-2' : 'bg-secondary/10 text-secondary mr-2'} flex items-center justify-center text-sm font-bold flex-shrink-0`}
-            >
-              {avatarText}
-            </div>
-            <div 
-              className={`${isCurrentUser ? 'bg-primary/10 text-neutral-800 rounded-tr-none' : 'bg-neutral-100 rounded-tl-none'} rounded-2xl px-4 py-2 max-w-[80%]`}
-            >
-              <p>{message.content}</p>
-              <span className="text-xs text-neutral-500 mt-1 block">
-                {formatTime(message.timestamp)}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-medium">
+                {message.type === "system" ? "System" : message.senderName}
               </span>
+              {message.sentiment !== undefined && (
+                <Badge variant="secondary" className={getSentimentColor(message.sentiment)}>
+                  Sentiment: {message.sentiment}
+                </Badge>
+              )}
+              {message.language && (
+                <Badge variant="outline">
+                  Language: {message.language}
+                </Badge>
+              )}
+            </div>
+            <div
+              className={`rounded-lg px-4 py-2 ${
+                message.type === "system"
+                  ? "bg-gray-100 text-gray-600"
+                  : "bg-primary text-primary-foreground"
+              }`}
+            >
+              {message.content}
             </div>
           </div>
-        );
-      })}
-      <div ref={messagesEndRef} />
-    </div>
+        ))}
+      </div>
+    </ScrollArea>
   );
 }

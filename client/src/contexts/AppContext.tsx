@@ -16,6 +16,8 @@ interface Message {
   senderName: string;
   timestamp: number;
   type: string;
+  sentiment?: number; // Added sentiment field
+  language?: string; // Added language field
 }
 
 interface AppContextProps {
@@ -93,7 +95,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const cancelConnection = () => {
     setShowConnectionModal(false);
     setConnectionState("disconnected");
-    
+
     if (websocket && websocket.readyState === WebSocket.OPEN) {
       websocket.send(JSON.stringify({
         type: "cancel_connection",
@@ -104,45 +106,45 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const getStarted = async () => {
     console.log("getStarted function called");
-    
+
     try {
       console.log("Requesting microphone access...");
-      
+
       // Create a timeout promise to fail faster if permission takes too long
       const timeoutPromise = new Promise<MediaStream>((_, reject) => {
         setTimeout(() => reject(new Error("Microphone permission request timed out")), 8000);
       });
-      
+
       // Request microphone access with a timeout
       const stream = await Promise.race([
         navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
         timeoutPromise
       ]);
-      
+
       console.log("Microphone access granted");
-      
+
       // Set the audio stream after successful permission
       setAudioStream(stream);
-      
+
       // Hide the welcome modal only after successful microphone access
       hideFirstVisitModal();
-      
+
       // Initialize the WebSocket connection in parallel with the UI update
       setTimeout(() => {
         initializeWebSocketConnection();
       }, 0);
-      
+
       return true;
     } catch (error) {
       console.error("Error accessing microphone:", error);
-      
+
       // Add appropriate error handling message to the user
       if (error instanceof Error && error.message === "Microphone permission request timed out") {
         addSystemMessage("Taking too long to access microphone. Please check browser permissions or try again.");
       } else {
         addSystemMessage("Failed to access microphone. Please ensure your microphone is connected and you've granted permission.");
       }
-      
+
       // Don't hide the welcome screen if there was an error
       return false;
     }
@@ -164,71 +166,71 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const ws = setupWebSocket(currentUser.id);
       console.log("WebSocket setup result:", ws ? "Success" : "Failed");
-    
+
       if (websocket) {
         websocket.onmessage = (event) => {
-        const data: WebSocketMessage = JSON.parse(event.data);
-        
-        switch (data.type) {
-          case "user_connected":
-            // Initial connection acknowledgment
-            addSystemMessage("Connected to server. Click 'Next Partner' to start chatting.");
-            break;
-          
-          case "partner_found":
-            if (data.partnerId && data.username) {
-              setPartner({
-                id: data.partnerId,
-                name: data.username,
-                avatar: getInitials(data.username)
-              });
-              setConnectionState("connected");
-              setShowConnectionModal(false);
-              addSystemMessage(`Connected with ${data.username}. Say hello!`);
-              
-              // Initialize WebRTC after partner is found
-              if (audioStream) {
-                setupRTCPeerConnection(currentUser.id, data.partnerId, audioStream, false);
+          const data: WebSocketMessage = JSON.parse(event.data);
+
+          switch (data.type) {
+            case "user_connected":
+              // Initial connection acknowledgment
+              addSystemMessage("Connected to server. Click 'Next Partner' to start chatting.");
+              break;
+
+            case "partner_found":
+              if (data.partnerId && data.username) {
+                setPartner({
+                  id: data.partnerId,
+                  name: data.username,
+                  avatar: getInitials(data.username)
+                });
+                setConnectionState("connected");
+                setShowConnectionModal(false);
+                addSystemMessage(`Connected with ${data.username}. Say hello!`);
+
+                // Initialize WebRTC after partner is found
+                if (audioStream) {
+                  setupRTCPeerConnection(currentUser.id, data.partnerId, audioStream, false);
+                }
               }
-            }
-            break;
-            
-          case "signal":
-            if (data.signal && peerConnection) {
-              handleSignalingData(data.signal);
-            }
-            break;
-            
-          case "message_received":
-            if (data.message) {
-              const newMessage: Message = {
-                id: crypto.randomUUID(),
-                content: data.message.content,
-                senderId: data.message.senderId,
-                senderName: data.message.senderName,
-                timestamp: data.message.timestamp,
-                type: data.message.type
-              };
-              setMessages(prev => [...prev, newMessage]);
-            }
-            break;
-            
-          case "partner_disconnected":
-            addSystemMessage("Your partner has disconnected.");
-            setPartner(null);
-            setConnectionState("disconnected");
-            break;
-            
-          case "no_partners_available":
-            addSystemMessage("No partners are available right now. Please try again in a moment.");
-            setShowConnectionModal(false);
-            setConnectionState("disconnected");
-            break;
-        }
-      };
-      
-      setIsInitialized(true);
-    }
+              break;
+
+            case "signal":
+              if (data.signal && peerConnection) {
+                handleSignalingData(data.signal);
+              }
+              break;
+
+            case "message_received":
+              if (data.message) {
+                const newMessage: Message = {
+                  id: crypto.randomUUID(),
+                  content: data.message.content,
+                  senderId: data.message.senderId,
+                  senderName: data.message.senderName,
+                  timestamp: data.message.timestamp,
+                  type: data.message.type
+                };
+                setMessages(prev => [...prev, newMessage]);
+              }
+              break;
+
+            case "partner_disconnected":
+              addSystemMessage("Your partner has disconnected.");
+              setPartner(null);
+              setConnectionState("disconnected");
+              break;
+
+            case "no_partners_available":
+              addSystemMessage("No partners are available right now. Please try again in a moment.");
+              setShowConnectionModal(false);
+              setConnectionState("disconnected");
+              break;
+          }
+        };
+
+        setIsInitialized(true);
+      }
     } catch (error) {
       console.error("Error initializing WebSocket connection:", error);
     }
@@ -239,7 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("No peer connection available");
       return;
     }
-    
+
     if (signal.type === 'offer') {
       peerConnection.setRemoteDescription(new RTCSessionDescription(signal))
         .then(() => peerConnection!.createAnswer())
@@ -274,18 +276,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           partnerId: partner.id
         }));
       }
-      
+
       // Clean up existing peer connection
       if (peerConnection) {
         peerConnection.close();
       }
-      
+
       setPartner(null);
     }
-    
+
     setConnectionState("connecting");
     setShowConnectionModal(true);
-    
+
     // Request a new partner
     if (websocket && websocket.readyState === WebSocket.OPEN) {
       websocket.send(JSON.stringify({
@@ -299,7 +301,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const toggleMute = () => {
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    
+
     if (audioStream) {
       audioStream.getAudioTracks().forEach(track => {
         track.enabled = !newMutedState; // When muted is true, we need to disable the track
@@ -309,18 +311,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const sendMessage = (content: string) => {
     if (!content.trim() || !partner) return;
-    
+
+    // Analyze sentiment
+    const Sentiment = require('sentiment');
+    const sentiment = new Sentiment();
+    const sentimentScore = sentiment.analyze(content).score;
+
+    // Detect language
+    const LanguageDetect = require('langdetect');
+    const detector = new LanguageDetect();
+    const detectedLang = detector.detect(content);
+
     const newMessage: Message = {
       id: crypto.randomUUID(),
       content,
       senderId: currentUser.id,
       senderName: currentUser.name,
       timestamp: Date.now(),
-      type: "text"
+      type: "text",
+      sentiment: sentimentScore,
+      language: detectedLang[0]?.lang || 'unknown'
     };
-    
+
     setMessages(prev => [...prev, newMessage]);
-    
+
     if (websocket && websocket.readyState === WebSocket.OPEN) {
       websocket.send(JSON.stringify({
         type: "send_message",
@@ -343,11 +357,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
       }
-      
+
       if (peerConnection) {
         peerConnection.close();
       }
-      
+
       if (websocket) {
         websocket.close();
       }
