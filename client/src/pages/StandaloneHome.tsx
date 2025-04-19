@@ -5,10 +5,9 @@ import ChatArea from "@/components/ChatArea";
 import ChatInput from "@/components/ChatInput";
 import AudioControls from "@/components/AudioControls";
 import { Badge } from "@/components/ui/badge";
+import { websocket } from "@/lib/websocket";
 
-// This is a standalone version that doesn't require WebSockets to work
 export default function StandaloneHome() {
-  // State
   const [connectionState, setConnectionState] = useState<"disconnected" | "connecting" | "connected">("disconnected");
   const [isMuted, setIsMuted] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<{id: string, name: string, avatar: string}[]>([]);
@@ -23,41 +22,37 @@ export default function StandaloneHome() {
       type: "system"
     }
   ]);
-  
+
   const [currentUser] = useState({
     id: crypto.randomUUID(),
     name: "You",
     avatar: "YO"
   });
-  
+
   const [partner, setPartner] = useState<{id: string, name: string, avatar: string} | null>(null);
-  
-  // Update online users from WebSocket connections
+
   useEffect(() => {
-    // The online count will be updated through WebSocket messages
-    setOnlineCount(0);
-    setOnlineUsers([]);
-  }, []);
-      
-      usedNames.add(randomName);
-      
-      users.push({
-        id: crypto.randomUUID(),
-        name: randomName,
-        avatar: randomName.substring(0, 2).toUpperCase()
-      });
+    if (websocket) {
+      websocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'users_update') {
+          setOnlineUsers(data.users);
+          setOnlineCount(data.users.length);
+        } else if (data.type === 'partner_connected') {
+          setPartner(data.partner);
+          setConnectionState('connected');
+        } else if (data.type === 'message') {
+          addMessage(data.message);
+        }
+      };
     }
-    
-    setOnlineUsers(users);
   }, []);
-  
-  // Functions
+
   const toggleMute = () => {
     setIsMuted(!isMuted);
   };
-  
+
   const findNextPartner = () => {
-    // Reset current partner if any
     if (partner) {
       addMessage({
         id: crypto.randomUUID(),
@@ -68,10 +63,18 @@ export default function StandaloneHome() {
         type: "system"
       });
     }
-    
+
     setPartner(null);
     setConnectionState("connecting");
-    
+
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify({
+        type: "find_partner",
+        userId: currentUser.id,
+        userName: currentUser.name
+      }));
+    }
+
     addMessage({
       id: crypto.randomUUID(),
       content: "Looking for a partner...",
@@ -80,84 +83,37 @@ export default function StandaloneHome() {
       timestamp: Date.now(),
       type: "system"
     });
-    
-    // Simulate connection time
-    setTimeout(() => {
-      // Check if we have any online users to connect with
-      if (onlineUsers.length > 0 && Math.random() > 0.3) {
-        // Select a random user from the online users list
-        const randomIndex = Math.floor(Math.random() * onlineUsers.length);
-        const selectedPartner = onlineUsers[randomIndex];
-        
-        // Set as partner
-        setPartner(selectedPartner);
-        setConnectionState("connected");
-        
-        addMessage({
-          id: crypto.randomUUID(),
-          content: `Connected with ${selectedPartner.name}. Say hello!`,
-          senderId: "system",
-          senderName: "System",
-          timestamp: Date.now(),
-          type: "system"
-        });
-      } else {
-        setPartner(null);
-        setConnectionState("disconnected");
-        
-        addMessage({
-          id: crypto.randomUUID(),
-          content: "No partners available right now. Please try again later.",
-          senderId: "system",
-          senderName: "System",
-          timestamp: Date.now(),
-          type: "system"
-        });
-      }
-    }, 1500);
   };
-  
+
   const sendMessage = (content: string) => {
     if (!content.trim() || !partner) return;
-    
-    // Add user message
-    addMessage({
+
+    const message = {
       id: crypto.randomUUID(),
       content,
       senderId: currentUser.id,
       senderName: currentUser.name,
       timestamp: Date.now(),
       type: "text"
-    });
-    
-    // Simulate partner response
-    setTimeout(() => {
-      const responses = [
-        "That's interesting!",
-        "I understand what you mean.",
-        "Could you explain more?",
-        "I'm learning a lot from this conversation!",
-        "How do you say that in English?"
-      ];
-      
-      addMessage({
-        id: crypto.randomUUID(),
-        content: responses[Math.floor(Math.random() * responses.length)],
-        senderId: partner.id,
-        senderName: partner.name,
-        timestamp: Date.now(),
-        type: "text"
-      });
-    }, 1000 + Math.random() * 2000);
+    };
+
+    addMessage(message);
+
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify({
+        type: "message",
+        to: partner.id,
+        message
+      }));
+    }
   };
-  
+
   const addMessage = (message: any) => {
     setMessages(prev => [...prev, message]);
   };
-  
+
   return (
     <main className="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col lg:flex-row h-[95vh] lg:h-[85vh] mx-auto my-4">
-      {/* Mobile Header */}
       <header className="bg-primary text-white p-4 flex items-center justify-between lg:hidden">
         <div className="flex items-center">
           <h1 className="text-xl font-bold">Bolo&Seekho</h1>
@@ -185,15 +141,12 @@ export default function StandaloneHome() {
         </div>
       </header>
 
-      {/* Sidebar */}
       <aside className="lg:w-1/3 border-r border-neutral-200 flex flex-col">
-        {/* Desktop Header */}
         <header className="hidden lg:block bg-primary text-white p-6">
           <h1 className="text-2xl font-bold">Bolo&Seekho</h1>
           <p className="text-sm mt-1 opacity-80">Practice English with new friends</p>
         </header>
 
-        {/* Connection Status */}
         <div className="bg-neutral-50 p-6 border-b border-neutral-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Connection Status</h2>
@@ -201,7 +154,7 @@ export default function StandaloneHome() {
               {onlineCount} online
             </Badge>
           </div>
-          
+
           <div className="flex items-center gap-2 mb-4">
             {connectionState === "connected" ? (
               <>
@@ -220,8 +173,7 @@ export default function StandaloneHome() {
               </>
             )}
           </div>
-          
-          {/* Online Users List */}
+
           <details className="group">
             <summary className="flex cursor-pointer items-center justify-between list-none font-medium text-sm text-neutral-600 hover:text-primary">
               <span>Users Online</span>
@@ -242,7 +194,6 @@ export default function StandaloneHome() {
           </details>
         </div>
 
-        {/* User Info */}
         <div className="p-6 border-b border-neutral-200 flex-1">
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-4">Your Profile</h2>
@@ -285,7 +236,6 @@ export default function StandaloneHome() {
           </div>
         </div>
 
-        {/* Audio Controls */}
         <div className="bg-white p-6 border-t border-neutral-200">
           <div className="flex flex-col space-y-4">
             <button
@@ -294,7 +244,7 @@ export default function StandaloneHome() {
             >
               {connectionState === "connected" ? "Next Partner" : "Find Partner"}
             </button>
-            
+
             <button
               onClick={toggleMute}
               className={`w-full py-2 px-4 font-medium rounded-lg transition-colors ${
@@ -309,7 +259,6 @@ export default function StandaloneHome() {
         </div>
       </aside>
 
-      {/* Chat Area */}
       <section className="lg:w-2/3 flex flex-col h-full">
         <ChatArea 
           messages={messages}
