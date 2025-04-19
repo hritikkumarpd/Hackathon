@@ -75,11 +75,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUser, setCurrentUser] = useState<User>(() => {
-    const randomName = generateRandomName();
+    const id = crypto.randomUUID();
     return {
-      id: crypto.randomUUID(),
-      name: randomName,
-      avatar: getInitials(randomName)
+      id,
+      name: "",
+      avatar: ""
     };
   });
   const [partner, setPartner] = useState<User | null>(null);
@@ -104,8 +104,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getStarted = async () => {
-    console.log("getStarted function called");
+  const getStarted = async (customName?: string) => {
+    console.log("getStarted function called with name:", customName);
 
     try {
       console.log("Requesting microphone access...");
@@ -123,8 +123,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       console.log("Microphone access granted");
 
-      // Set the audio stream after successful permission
+      // Set the audio stream and update user name
       setAudioStream(stream);
+      const finalName = customName?.trim() || generateRandomName();
+      setCurrentUser(prev => ({
+        ...prev,
+        name: finalName,
+        avatar: getInitials(finalName)
+      }));
 
       // Hide the welcome modal only after successful microphone access
       hideFirstVisitModal();
