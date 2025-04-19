@@ -37,8 +37,7 @@ export default function StandaloneHome() {
     // The online count will be updated through WebSocket messages
     setOnlineCount(0);
     setOnlineUsers([]);
-        randomName = names[Math.floor(Math.random() * names.length)];
-      } while (usedNames.has(randomName));
+  }, []);
       
       usedNames.add(randomName);
       
