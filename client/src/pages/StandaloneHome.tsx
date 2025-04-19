@@ -4,12 +4,15 @@ import UserProfile from "@/components/UserProfile";
 import ChatArea from "@/components/ChatArea";
 import ChatInput from "@/components/ChatInput";
 import AudioControls from "@/components/AudioControls";
+import { Badge } from "@/components/ui/badge";
 
 // This is a standalone version that doesn't require WebSockets to work
 export default function StandaloneHome() {
   // State
   const [connectionState, setConnectionState] = useState<"disconnected" | "connecting" | "connected">("disconnected");
   const [isMuted, setIsMuted] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<{id: string, name: string, avatar: string}[]>([]);
+  const [onlineCount, setOnlineCount] = useState(0);
   const [messages, setMessages] = useState([
     {
       id: "1",
@@ -29,13 +32,57 @@ export default function StandaloneHome() {
   
   const [partner, setPartner] = useState<{id: string, name: string, avatar: string} | null>(null);
   
+  // Generate random online users
+  useEffect(() => {
+    // Simulate random online users
+    const names = ["Alex", "Taylor", "Jordan", "Casey", "Riley", "Morgan", "Quinn", "Avery",
+      "Jamie", "Charlie", "Skyler", "Dakota", "Peyton", "Reese", "Finley", "Sasha"];
+    
+    // Generate random count between 5-15
+    const count = Math.floor(Math.random() * 11) + 5;
+    setOnlineCount(count);
+    
+    // Generate random users
+    const users = [];
+    const usedNames = new Set();
+    
+    for (let i = 0; i < count; i++) {
+      let randomName;
+      do {
+        randomName = names[Math.floor(Math.random() * names.length)];
+      } while (usedNames.has(randomName));
+      
+      usedNames.add(randomName);
+      
+      users.push({
+        id: crypto.randomUUID(),
+        name: randomName,
+        avatar: randomName.substring(0, 2).toUpperCase()
+      });
+    }
+    
+    setOnlineUsers(users);
+  }, []);
+  
   // Functions
   const toggleMute = () => {
     setIsMuted(!isMuted);
   };
   
   const findNextPartner = () => {
-    // For testing, simulate connecting to a partner
+    // Reset current partner if any
+    if (partner) {
+      addMessage({
+        id: crypto.randomUUID(),
+        content: `You've disconnected from ${partner.name}.`,
+        senderId: "system",
+        senderName: "System",
+        timestamp: Date.now(),
+        type: "system"
+      });
+    }
+    
+    setPartner(null);
     setConnectionState("connecting");
     
     addMessage({
@@ -49,20 +96,19 @@ export default function StandaloneHome() {
     
     // Simulate connection time
     setTimeout(() => {
-      if (Math.random() > 0.3) {
-        const names = ["Alex", "Taylor", "Jordan", "Casey", "Riley"];
-        const randomName = names[Math.floor(Math.random() * names.length)];
-        setPartner({
-          id: crypto.randomUUID(),
-          name: randomName,
-          avatar: randomName.substring(0, 2).toUpperCase()
-        });
+      // Check if we have any online users to connect with
+      if (onlineUsers.length > 0 && Math.random() > 0.3) {
+        // Select a random user from the online users list
+        const randomIndex = Math.floor(Math.random() * onlineUsers.length);
+        const selectedPartner = onlineUsers[randomIndex];
         
+        // Set as partner
+        setPartner(selectedPartner);
         setConnectionState("connected");
         
         addMessage({
           id: crypto.randomUUID(),
-          content: `Connected with ${randomName}. Say hello!`,
+          content: `Connected with ${selectedPartner.name}. Say hello!`,
           senderId: "system",
           senderName: "System",
           timestamp: Date.now(),
@@ -126,7 +172,12 @@ export default function StandaloneHome() {
     <main className="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col lg:flex-row h-[95vh] lg:h-[85vh] mx-auto my-4">
       {/* Mobile Header */}
       <header className="bg-primary text-white p-4 flex items-center justify-between lg:hidden">
-        <h1 className="text-xl font-bold">Bolo&Seekho</h1>
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold">Bolo&Seekho</h1>
+          <Badge variant="secondary" className="ml-2 bg-white/20 text-white">
+            {onlineCount} online
+          </Badge>
+        </div>
         <div className="text-sm">
           {connectionState === "connected" ? (
             <span className="inline-flex items-center">
@@ -157,8 +208,14 @@ export default function StandaloneHome() {
 
         {/* Connection Status */}
         <div className="bg-neutral-50 p-6 border-b border-neutral-200">
-          <h2 className="text-lg font-semibold mb-4">Connection Status</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Connection Status</h2>
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              {onlineCount} online
+            </Badge>
+          </div>
+          
+          <div className="flex items-center gap-2 mb-4">
             {connectionState === "connected" ? (
               <>
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
@@ -176,6 +233,26 @@ export default function StandaloneHome() {
               </>
             )}
           </div>
+          
+          {/* Online Users List */}
+          <details className="group">
+            <summary className="flex cursor-pointer items-center justify-between list-none font-medium text-sm text-neutral-600 hover:text-primary">
+              <span>Users Online</span>
+              <span className="transition group-open:rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </summary>
+            <div className="mt-3 max-h-36 overflow-y-auto flex flex-wrap gap-1.5">
+              {onlineUsers.map(user => (
+                <Badge key={user.id} variant="outline" className="flex items-center gap-1 p-1 pl-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  {user.name}
+                </Badge>
+              ))}
+            </div>
+          </details>
         </div>
 
         {/* User Info */}
