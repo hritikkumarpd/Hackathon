@@ -10,8 +10,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // Create WebSocket server
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/ws',
+    clientTracking: true
+  });
 
+  // Log WebSocket server setup
+  console.log('WebSocket server created with path: /ws');
+  
   // Setup WebSocket event handlers
   setupWebSocketHandlers(wss, SESSION_MANAGER);
 

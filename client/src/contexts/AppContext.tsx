@@ -161,10 +161,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const initializeWebSocketConnection = () => {
-    setupWebSocket(currentUser.id);
+    try {
+      const ws = setupWebSocket(currentUser.id);
+      console.log("WebSocket setup result:", ws ? "Success" : "Failed");
     
-    if (websocket) {
-      websocket.onmessage = (event) => {
+      if (websocket) {
+        websocket.onmessage = (event) => {
         const data: WebSocketMessage = JSON.parse(event.data);
         
         switch (data.type) {
@@ -226,6 +228,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
       
       setIsInitialized(true);
+    }
+    } catch (error) {
+      console.error("Error initializing WebSocket connection:", error);
     }
   };
 
