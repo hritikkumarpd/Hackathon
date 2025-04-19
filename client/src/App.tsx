@@ -4,44 +4,45 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/not-found";
-import Home from "./pages/Home";
+import StandaloneHome from "./pages/StandaloneHome";
 import Welcome from "./pages/Welcome";
-import { useAppContext } from "./contexts/AppContext";
-import ConnectionModal from "./components/ConnectionModal";
 import { useState, useEffect } from "react";
 
 function Router() {
-  const { showFirstVisitModal } = useAppContext();
-  const [initialRender, setInitialRender] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    // Check if user has visited before
+    return !localStorage.getItem('visited');
+  });
   
   useEffect(() => {
-    // After initial render, mark it as complete
-    setInitialRender(false);
-  }, []);
+    if (!showWelcome) {
+      // Mark as visited
+      localStorage.setItem('visited', 'true');
+    }
+  }, [showWelcome]);
   
-  // During initial render or when showFirstVisitModal is true, show Welcome page
-  if (initialRender || showFirstVisitModal) {
-    return <Welcome />;
+  // Show welcome page if first visit
+  if (showWelcome) {
+    return (
+      <Welcome onGetStarted={() => setShowWelcome(false)} />
+    );
   }
   
   // Otherwise show regular routes
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={StandaloneHome} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
-  const { showConnectionModal } = useAppContext();
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Router />
-        {showConnectionModal && <ConnectionModal />}
       </TooltipProvider>
     </QueryClientProvider>
   );

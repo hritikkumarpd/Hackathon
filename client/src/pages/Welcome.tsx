@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useAppContext } from '@/contexts/AppContext';
 
-export default function Welcome() {
-  const { getStarted, hideFirstVisitModal } = useAppContext();
+interface WelcomeProps {
+  onGetStarted: () => void;
+}
+
+export default function Welcome({ onGetStarted }: WelcomeProps) {
   const [loading, setLoading] = useState(false);
   const [microphonePermission, setMicrophonePermission] = useState<'pending' | 'granted' | 'denied'>('pending');
   
@@ -28,14 +30,20 @@ export default function Welcome() {
       setLoading(true);
       console.log("Welcome page: Get Started button clicked");
       
-      // Just skip the microphone permission and move directly to the main page
-      // This is a temporary solution to fix the loading issue
-      hideFirstVisitModal();
-      
-      // Try to initialize audio in the background
-      getStarted().catch(error => {
-        console.error("Error initializing audio:", error);
-      });
+      // Request microphone permissions
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(() => {
+          console.log("Microphone access granted");
+          // Continue to main app
+          onGetStarted();
+        })
+        .catch(err => {
+          console.error("Microphone access denied:", err);
+          // Continue anyway - we'll show a notification in the app
+          setTimeout(() => {
+            onGetStarted();
+          }, 1000);
+        });
     } catch (error) {
       console.error("Error during getStarted:", error);
       setLoading(false);

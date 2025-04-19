@@ -1,0 +1,262 @@
+import { useState, useEffect } from 'react';
+import ConnectionStatus from "@/components/ConnectionStatus";
+import UserProfile from "@/components/UserProfile";
+import ChatArea from "@/components/ChatArea";
+import ChatInput from "@/components/ChatInput";
+import AudioControls from "@/components/AudioControls";
+
+// This is a standalone version that doesn't require WebSockets to work
+export default function StandaloneHome() {
+  // State
+  const [connectionState, setConnectionState] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [isMuted, setIsMuted] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      id: "1",
+      content: "Welcome to Bolo&Seekho! Click 'Find Partner' to start practicing English.",
+      senderId: "system",
+      senderName: "System",
+      timestamp: Date.now(),
+      type: "system"
+    }
+  ]);
+  
+  const [currentUser] = useState({
+    id: crypto.randomUUID(),
+    name: "You",
+    avatar: "YO"
+  });
+  
+  const [partner, setPartner] = useState<{id: string, name: string, avatar: string} | null>(null);
+  
+  // Functions
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+  };
+  
+  const findNextPartner = () => {
+    // For testing, simulate connecting to a partner
+    setConnectionState("connecting");
+    
+    addMessage({
+      id: crypto.randomUUID(),
+      content: "Looking for a partner...",
+      senderId: "system",
+      senderName: "System",
+      timestamp: Date.now(),
+      type: "system"
+    });
+    
+    // Simulate connection time
+    setTimeout(() => {
+      if (Math.random() > 0.3) {
+        const names = ["Alex", "Taylor", "Jordan", "Casey", "Riley"];
+        const randomName = names[Math.floor(Math.random() * names.length)];
+        setPartner({
+          id: crypto.randomUUID(),
+          name: randomName,
+          avatar: randomName.substring(0, 2).toUpperCase()
+        });
+        
+        setConnectionState("connected");
+        
+        addMessage({
+          id: crypto.randomUUID(),
+          content: `Connected with ${randomName}. Say hello!`,
+          senderId: "system",
+          senderName: "System",
+          timestamp: Date.now(),
+          type: "system"
+        });
+      } else {
+        setPartner(null);
+        setConnectionState("disconnected");
+        
+        addMessage({
+          id: crypto.randomUUID(),
+          content: "No partners available right now. Please try again later.",
+          senderId: "system",
+          senderName: "System",
+          timestamp: Date.now(),
+          type: "system"
+        });
+      }
+    }, 1500);
+  };
+  
+  const sendMessage = (content: string) => {
+    if (!content.trim() || !partner) return;
+    
+    // Add user message
+    addMessage({
+      id: crypto.randomUUID(),
+      content,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      timestamp: Date.now(),
+      type: "text"
+    });
+    
+    // Simulate partner response
+    setTimeout(() => {
+      const responses = [
+        "That's interesting!",
+        "I understand what you mean.",
+        "Could you explain more?",
+        "I'm learning a lot from this conversation!",
+        "How do you say that in English?"
+      ];
+      
+      addMessage({
+        id: crypto.randomUUID(),
+        content: responses[Math.floor(Math.random() * responses.length)],
+        senderId: partner.id,
+        senderName: partner.name,
+        timestamp: Date.now(),
+        type: "text"
+      });
+    }, 1000 + Math.random() * 2000);
+  };
+  
+  const addMessage = (message: any) => {
+    setMessages(prev => [...prev, message]);
+  };
+  
+  return (
+    <main className="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col lg:flex-row h-[95vh] lg:h-[85vh] mx-auto my-4">
+      {/* Mobile Header */}
+      <header className="bg-primary text-white p-4 flex items-center justify-between lg:hidden">
+        <h1 className="text-xl font-bold">Bolo&Seekho</h1>
+        <div className="text-sm">
+          {connectionState === "connected" ? (
+            <span className="inline-flex items-center">
+              <span className="w-2 h-2 rounded-full bg-green-400 mr-1"></span>
+              Connected
+            </span>
+          ) : connectionState === "connecting" ? (
+            <span className="inline-flex items-center">
+              <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse mr-1"></span>
+              Connecting...
+            </span>
+          ) : (
+            <span className="inline-flex items-center">
+              <span className="w-2 h-2 rounded-full bg-red-400 mr-1"></span>
+              Disconnected
+            </span>
+          )}
+        </div>
+      </header>
+
+      {/* Sidebar */}
+      <aside className="lg:w-1/3 border-r border-neutral-200 flex flex-col">
+        {/* Desktop Header */}
+        <header className="hidden lg:block bg-primary text-white p-6">
+          <h1 className="text-2xl font-bold">Bolo&Seekho</h1>
+          <p className="text-sm mt-1 opacity-80">Practice English with new friends</p>
+        </header>
+
+        {/* Connection Status */}
+        <div className="bg-neutral-50 p-6 border-b border-neutral-200">
+          <h2 className="text-lg font-semibold mb-4">Connection Status</h2>
+          <div className="flex items-center gap-2">
+            {connectionState === "connected" ? (
+              <>
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span className="font-medium">Connected</span>
+              </>
+            ) : connectionState === "connecting" ? (
+              <>
+                <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
+                <span className="font-medium">Connecting...</span>
+              </>
+            ) : (
+              <>
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <span className="font-medium">Disconnected</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* User Info */}
+        <div className="p-6 border-b border-neutral-200 flex-1">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-4">Your Profile</h2>
+            <UserProfile 
+              user={currentUser}
+              description="English Learner"
+            />
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Partner</h2>
+            {partner ? (
+              <UserProfile 
+                user={partner}
+                description="English Learner"
+                isPartner={true}
+              />
+            ) : (
+              <div className="flex items-center waiting-for-partner">
+                <div className="h-12 w-12 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-400 mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-neutral-400">
+                    {connectionState === "connecting" 
+                      ? "Finding partner..." 
+                      : "Waiting for partner..."}
+                  </p>
+                  <div className="flex items-center mt-1">
+                    <span className="block h-2 w-2 rounded-full bg-neutral-300 animate-pulse"></span>
+                    <span className="block h-2 w-2 rounded-full bg-neutral-300 animate-pulse ml-1" style={{animationDelay: '300ms'}}></span>
+                    <span className="block h-2 w-2 rounded-full bg-neutral-300 animate-pulse ml-1" style={{animationDelay: '600ms'}}></span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Audio Controls */}
+        <div className="bg-white p-6 border-t border-neutral-200">
+          <div className="flex flex-col space-y-4">
+            <button
+              onClick={findNextPartner}
+              className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition-colors"
+            >
+              {connectionState === "connected" ? "Next Partner" : "Find Partner"}
+            </button>
+            
+            <button
+              onClick={toggleMute}
+              className={`w-full py-2 px-4 font-medium rounded-lg transition-colors ${
+                isMuted
+                  ? "bg-red-100 text-red-700 hover:bg-red-200"
+                  : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+              }`}
+            >
+              {isMuted ? "Unmute Microphone" : "Mute Microphone"}
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Chat Area */}
+      <section className="lg:w-2/3 flex flex-col h-full">
+        <ChatArea 
+          messages={messages}
+          currentUser={currentUser}
+          partner={partner}
+        />
+        <ChatInput 
+          sendMessage={sendMessage}
+          isDisabled={connectionState !== "connected"}
+        />
+      </section>
+    </main>
+  );
+}
