@@ -32,23 +32,11 @@ export default function StandaloneHome() {
   
   const [partner, setPartner] = useState<{id: string, name: string, avatar: string} | null>(null);
   
-  // Generate random online users
+  // Update online users from WebSocket connections
   useEffect(() => {
-    // Simulate random online users
-    const names = ["Alex", "Taylor", "Jordan", "Casey", "Riley", "Morgan", "Quinn", "Avery",
-      "Jamie", "Charlie", "Skyler", "Dakota", "Peyton", "Reese", "Finley", "Sasha"];
-    
-    // Generate random count between 5-15
-    const count = Math.floor(Math.random() * 11) + 5;
-    setOnlineCount(count);
-    
-    // Generate random users
-    const users = [];
-    const usedNames = new Set();
-    
-    for (let i = 0; i < count; i++) {
-      let randomName;
-      do {
+    // The online count will be updated through WebSocket messages
+    setOnlineCount(0);
+    setOnlineUsers([]);
         randomName = names[Math.floor(Math.random() * names.length)];
       } while (usedNames.has(randomName));
       
